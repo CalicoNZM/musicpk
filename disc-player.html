@@ -1,0 +1,914 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Disc Player</title>
+<style>
+  /* ============================================================
+     THEME TOKENS
+     Three eras, one component tree. Add a fourth by adding one
+     [data-theme="..."] block — nothing else needs to change.
+  ============================================================ */
+  :root{
+    --radius: 0px;
+    --shadow-window: none;
+  }
+
+  html[data-theme="win95"]{
+    --font: Tahoma, 'MS Sans Serif', Geneva, sans-serif;
+    --font-title: Tahoma, sans-serif;
+    --desktop-bg: #008080;
+    --face: #c0c0c0;
+    --face-dark: #9a9a9a;
+    --edge-hi: #ffffff;
+    --edge-hi2: #dfdfdf;
+    --edge-lo: #808080;
+    --edge-lo2: #000000;
+    --titlebar: linear-gradient(90deg, #000080, #1084d0);
+    --titlebar-text: #ffffff;
+    --text: #000000;
+    --muted: #444444;
+    --highlight: #000080;
+    --highlight-text: #ffffff;
+    --accent: #00aa00;
+    --accent-2: #007700;
+    --panel-sunken-bg: #ffffff;
+    --radius: 0px;
+    --shadow-window: none;
+    --btn-radius: 0px;
+  }
+
+  html[data-theme="macos9"]{
+    --font: Geneva, 'Charcoal', 'Helvetica Neue', sans-serif;
+    --font-title: Geneva, sans-serif;
+    --desktop-bg: repeating-linear-gradient(115deg, #9fb6c9 0px, #9fb6c9 2px, #b3c7d6 2px, #b3c7d6 4px);
+    --face: #dcdcdc;
+    --face-dark: #bdbdbd;
+    --edge-hi: #ffffff;
+    --edge-hi2: #eeeeee;
+    --edge-lo: #999999;
+    --edge-lo2: #6b6b6b;
+    --titlebar: repeating-linear-gradient(180deg, #ffffff 0px, #ffffff 2px, #d3d3d3 2px, #d3d3d3 4px);
+    --titlebar-text: #222222;
+    --text: #1c1c1c;
+    --muted: #55555a;
+    --highlight: #3876d1;
+    --highlight-text: #ffffff;
+    --accent: #4a7fb5;
+    --accent-2: #2f5c8a;
+    --panel-sunken-bg: #ffffff;
+    --radius: 9px;
+    --shadow-window: 0 10px 22px rgba(0,0,0,.28);
+    --btn-radius: 6px;
+  }
+
+  html[data-theme="macosx"]{
+    --font: 'Lucida Grande', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --font-title: 'Lucida Grande', sans-serif;
+    --desktop-bg:
+      linear-gradient(160deg, rgba(255,255,255,.5) 0%, rgba(255,255,255,0) 30%),
+      linear-gradient(200deg, #bcd7ef 0%, #6fa3d8 38%, #2f6fb0 72%, #17417a 100%);
+    --face: #eef2f6;
+    --face-dark: #d3dae1;
+    --edge-hi: #ffffff;
+    --edge-hi2: #f6f8fa;
+    --edge-lo: #a9b2ba;
+    --edge-lo2: #7c848c;
+    --titlebar: linear-gradient(180deg, #f4f7fa 0%, #dbe2e9 48%, #c7d0d8 50%, #eef3f7 100%);
+    --titlebar-text: #33383d;
+    --text: #24282c;
+    --muted: #63696f;
+    --highlight: linear-gradient(180deg, #7fb0ff, #2f6fed 55%, #0a4bd1);
+    --highlight-text: #ffffff;
+    --accent: #2f7dee;
+    --accent-2: #7fb0ff;
+    --panel-sunken-bg: #ffffff;
+    --radius: 11px;
+    --shadow-window: 0 24px 48px -12px rgba(10,25,50,.55), 0 2px 0 rgba(255,255,255,.4);
+    --btn-radius: 999px;
+  }
+
+  *{ box-sizing:border-box; }
+  [hidden]{ display:none !important; } /* belt-and-suspenders: some rules below set display explicitly */
+  html,body{ height:100%; margin:0; }
+  body{
+    font-family: var(--font);
+    color: var(--text);
+    background: var(--desktop-bg);
+    background-attachment: fixed;
+    min-height:100%;
+    display:flex; align-items:center; justify-content:center;
+    padding: 70px 18px 40px;
+  }
+
+  /* ============================================================
+     THEME SWITCH — sits outside the window on purpose. It's a
+     control for the page, not part of any one era's chrome.
+  ============================================================ */
+  .theme-switch{
+    position:fixed; top:16px; left:50%; transform:translateX(-50%);
+    display:flex; gap:1px;
+    background:rgba(0,0,0,.28);
+    padding:3px; border-radius:8px;
+    backdrop-filter: blur(6px);
+    z-index:50;
+  }
+  .theme-switch button{
+    font: 600 11px/1 var(--font, sans-serif);
+    letter-spacing:.02em;
+    padding:6px 12px;
+    border:none; border-radius:6px;
+    background:transparent; color:#fff;
+    cursor:pointer;
+    opacity:.8;
+  }
+  .theme-switch button:hover{ opacity:1; background:rgba(255,255,255,.12); }
+  .theme-switch button.active{ opacity:1; background:rgba(255,255,255,.9); color:#111; }
+  .theme-switch button:focus-visible{ outline:2px solid #fff; outline-offset:1px; }
+
+  /* ============================================================
+     WINDOW SHELL
+  ============================================================ */
+  .window{
+    width:380px; max-width:92vw;
+    background: var(--face);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-window);
+    overflow:hidden;
+    transition: transform .12s ease;
+  }
+  .window.shake{ animation: shake .4s ease; }
+  @keyframes shake{
+    0%,100%{ transform:translateX(0); }
+    20%{ transform:translateX(-6px) rotate(-.4deg); }
+    40%{ transform:translateX(5px) rotate(.4deg); }
+    60%{ transform:translateX(-3px); }
+    80%{ transform:translateX(2px); }
+  }
+  html[data-theme="win95"] .window{ outline:1px solid #000; outline-offset:-1px; }
+
+  /* ---- titlebar: three completely different eras ---- */
+  .titlebar{
+    display:flex; align-items:center; gap:8px;
+    padding:5px 6px;
+    background: var(--titlebar);
+    color: var(--titlebar-text);
+    user-select:none;
+    cursor: default;
+  }
+  .tl-icon{ width:14px; height:14px; flex:0 0 auto; opacity:.9; }
+  .tl-icon svg{ width:100%; height:100%; display:block; }
+  .tl-title{
+    flex:1; font-size:12px; font-weight:700;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-family: var(--font-title);
+  }
+  html[data-theme="macos9"] .tl-title,
+  html[data-theme="macosx"] .tl-title{ text-align:center; font-weight:600; }
+
+  /* win95: little square min/max/close buttons on the right */
+  .winbtns{ display:flex; gap:2px; }
+  .winbtns button{
+    width:16px; height:14px;
+    background: var(--face);
+    border-top:1px solid var(--edge-hi); border-left:1px solid var(--edge-hi);
+    border-bottom:1px solid var(--edge-lo2); border-right:1px solid var(--edge-lo2);
+    font-size:9px; line-height:1; color:#000; cursor:pointer; padding:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .winbtns button:active{
+    border-top:1px solid var(--edge-lo2); border-left:1px solid var(--edge-lo2);
+    border-bottom:1px solid var(--edge-hi); border-right:1px solid var(--edge-hi);
+  }
+  html[data-theme="win95"] .tl-icon{ display:flex; }
+  html:not([data-theme="win95"]) .tl-icon{ display:none; }
+  /* non-win95 winbtns stay in flow (invisible) so the centered title is actually centered,
+     balanced against the traffic lights on the left — a real trick from real window chrome */
+  html:not([data-theme="win95"]) .winbtns{ visibility:hidden; pointer-events:none; }
+  html[data-theme="win95"] .tl-lights{ display:none; }
+
+  /* mac os9 / os x: traffic-light / close-box on the left */
+  .tl-lights{ display:flex; gap:6px; align-items:center; }
+  .tl-lights .lt{ width:12px; height:12px; border-radius:50%; border:1px solid rgba(0,0,0,.25); cursor:pointer; padding:0; }
+  html[data-theme="macos9"] .tl-lights .lt{ border-radius:2px; background:var(--face); }
+  html[data-theme="macos9"] .tl-lights .min,
+  html[data-theme="macos9"] .tl-lights .max{ visibility:hidden; } /* OS9 title bar really only had the one close box */
+  html[data-theme="macosx"] .tl-lights .close{ background: radial-gradient(circle at 35% 30%, #ff8f80, #e5493a 65%, #c62d20); }
+  html[data-theme="macosx"] .tl-lights .min  { background: radial-gradient(circle at 35% 30%, #ffe28a, #f0b429 65%, #cc8f14); }
+  html[data-theme="macosx"] .tl-lights .max  { background: radial-gradient(circle at 35% 30%, #a6ec84, #57c33a 65%, #379423); }
+  html[data-theme="macosx"] .tl-lights .lt:hover{ filter:brightness(1.1); }
+
+  /* ---- menu bar ---- */
+  .menubar{
+    display:flex; gap:2px;
+    background: var(--face);
+    padding:2px 4px;
+    border-bottom:1px solid var(--edge-lo);
+    position:relative;
+    font-size:11.5px;
+  }
+  html[data-theme="win95"] .menubar{ border-bottom:1px solid var(--edge-lo2); }
+  .menu{ position:relative; }
+  .menu-trigger{
+    background:none; border:none; padding:4px 8px; cursor:pointer;
+    color: var(--text); font:inherit; border-radius:3px;
+  }
+  .menu-trigger:hover, .menu-trigger.open{ background: var(--highlight); background-image: var(--highlight); color: var(--highlight-text); }
+  .menu-drop{
+    position:absolute; top:100%; left:0; min-width:170px;
+    background: var(--face);
+    border:1px solid var(--edge-lo2);
+    box-shadow: 2px 3px 6px rgba(0,0,0,.35);
+    display:none; z-index:20; padding:2px;
+    border-radius: calc(var(--btn-radius) / 3);
+  }
+  .menu-drop.open{ display:block; }
+  .menu-drop button{
+    display:block; width:100%; text-align:left; padding:5px 10px;
+    background:none; border:none; cursor:pointer; font:inherit; color:var(--text);
+    border-radius:3px;
+  }
+  .menu-drop button:hover, .menu-drop button:focus-visible{ background:var(--highlight); background-image:var(--highlight); color:var(--highlight-text); outline:none; }
+  .menu-drop button:disabled{ color: var(--edge-lo); cursor:default; background:none; }
+
+  /* ============================================================
+     BODY
+  ============================================================ */
+  .body-area{ padding:10px; display:flex; flex-direction:column; gap:9px; }
+
+  .np-panel{
+    background: var(--panel-sunken-bg);
+    border-radius: calc(var(--radius) / 2);
+    padding:9px 10px 8px;
+    box-shadow:
+      inset 0 0 0 1px var(--edge-lo),
+      inset 1px 1px 0 var(--edge-lo2);
+  }
+  html[data-theme="macosx"] .np-panel{ box-shadow: inset 0 0 0 1px rgba(0,0,0,.12), inset 0 1px 3px rgba(0,0,0,.12); }
+  html[data-theme="macos9"] .np-panel{ box-shadow: inset 0 0 0 1px var(--edge-lo); }
+
+  .empty-state{ text-align:center; padding:22px 8px 20px; color:var(--muted); }
+  .empty-state p{ margin:0 0 12px; font-size:12.5px; }
+
+  .btn{
+    font: 600 12px/1 var(--font);
+    color: var(--text);
+    background: var(--face);
+    border: none;
+    cursor:pointer;
+    padding:7px 14px;
+    border-radius: var(--btn-radius);
+  }
+  html[data-theme="win95"] .btn{
+    border-top:1px solid var(--edge-hi); border-left:1px solid var(--edge-hi);
+    border-bottom:1px solid var(--edge-lo2); border-right:1px solid var(--edge-lo2);
+  }
+  html[data-theme="win95"] .btn:active{
+    border-top:1px solid var(--edge-lo2); border-left:1px solid var(--edge-lo2);
+    border-bottom:1px solid var(--edge-hi); border-right:1px solid var(--edge-hi);
+    padding-top:8px;
+  }
+  html[data-theme="macos9"] .btn{ background:linear-gradient(180deg,#fff,#dcdcdc); box-shadow:0 0 0 1px var(--edge-lo), 0 1px 1px rgba(0,0,0,.15); }
+  html[data-theme="macos9"] .btn:active{ background:linear-gradient(180deg,#dcdcdc,#fff); }
+  html[data-theme="macosx"] .btn{ background:linear-gradient(180deg,#fff,#e3e8ec); box-shadow:0 0 0 1px rgba(0,0,0,.15), inset 0 1px 0 #fff, 0 1px 1px rgba(0,0,0,.15); }
+  html[data-theme="macosx"] .btn:active{ background:linear-gradient(180deg,#d8dee3,#eef2f5); }
+  .btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  .btn.primary{
+    color:#fff;
+  }
+  html[data-theme="win95"] .btn.primary{ background:var(--face); color:#000; }
+  html[data-theme="macos9"] .btn.primary{ background: linear-gradient(180deg,#5f97e6,#2f5c8a); color:#fff; box-shadow:0 0 0 1px #1f3f5c; }
+  html[data-theme="macosx"] .btn.primary{ background: var(--highlight); background-image: var(--highlight); color:#fff; box-shadow:0 0 0 1px #0a3aa8, inset 0 1px 0 rgba(255,255,255,.5); }
+
+  .np-content canvas{
+    display:block; width:100%; height:46px;
+    background:#000;
+    border-radius:2px;
+    margin-bottom:7px;
+  }
+  html[data-theme="macosx"] .np-content canvas{ border-radius:5px; }
+
+  .np-title{ font-size:13.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .np-artist{ font-size:11.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:7px; }
+
+  .seek-track{
+    position:relative; height:8px; border-radius:5px;
+    background: var(--face-dark);
+    box-shadow: inset 0 0 0 1px var(--edge-lo);
+    cursor:pointer;
+  }
+  .seek-fill{
+    position:absolute; left:0; top:0; bottom:0; width:0%;
+    background: var(--accent); background-image:none;
+    border-radius:5px 0 0 5px;
+  }
+  html[data-theme="macosx"] .seek-fill{ background-image: linear-gradient(180deg, var(--accent-2), var(--accent)); border-radius:5px; }
+  .seek-handle{
+    position:absolute; top:50%; left:0%; width:12px; height:12px;
+    border-radius:50%; background:#fff; transform:translate(-50%,-50%);
+    box-shadow:0 0 0 1px var(--edge-lo), 0 1px 2px rgba(0,0,0,.4);
+  }
+  html[data-theme="win95"] .seek-handle{ border-radius:2px; width:8px; }
+
+  .time-row{ display:flex; justify-content:space-between; font-size:10px; color:var(--muted); margin-top:4px;
+    font-family: ui-monospace, Consolas, monospace; }
+
+  .transport{ display:flex; align-items:center; gap:6px; }
+  .transport .btn{ width:34px; height:28px; display:flex; align-items:center; justify-content:center; padding:0; }
+  .transport .btn svg{ width:14px; height:14px; fill:currentColor; }
+  .transport .btn.play{ width:40px; }
+  .volume-wrap{ display:flex; align-items:center; gap:6px; margin-left:auto; flex:1; max-width:120px; }
+  .volume-wrap svg{ width:14px; height:14px; flex:0 0 auto; opacity:.75; }
+
+  input[type=range]{
+    -webkit-appearance:none; appearance:none;
+    width:100%; height:14px; background:transparent; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{ height:4px; border-radius:3px; background: var(--face-dark); box-shadow: inset 0 0 0 1px var(--edge-lo); }
+  input[type=range]::-moz-range-track{ height:4px; border-radius:3px; background: var(--face-dark); box-shadow: inset 0 0 0 1px var(--edge-lo); }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; margin-top:-5px;
+    width:13px; height:13px; border-radius:50%;
+    background:#fff; box-shadow:0 0 0 1px var(--edge-lo), 0 1px 2px rgba(0,0,0,.4);
+  }
+  html[data-theme="win95"] input[type=range]::-webkit-slider-thumb{ border-radius:2px; width:9px; height:13px; }
+  input[type=range]::-moz-range-thumb{ width:13px; height:13px; border:none; border-radius:50%; background:#fff; box-shadow:0 0 0 1px var(--edge-lo), 0 1px 2px rgba(0,0,0,.4); }
+
+  .playlist-wrap{
+    background: var(--panel-sunken-bg);
+    border-radius: calc(var(--radius) / 2);
+    box-shadow: inset 0 0 0 1px var(--edge-lo), inset 1px 1px 0 var(--edge-lo2);
+    height:150px; overflow-y:auto;
+  }
+  html[data-theme="macosx"] .playlist-wrap,
+  html[data-theme="macos9"] .playlist-wrap{ box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+  .playlist{ list-style:none; margin:0; padding:2px; }
+  .playlist li{
+    display:flex; align-items:center; gap:7px;
+    padding:4px 6px; font-size:11.5px; cursor:pointer; border-radius:2px;
+  }
+  .playlist li .idx{ font-family: ui-monospace, Consolas, monospace; opacity:.5; width:16px; flex:0 0 auto; }
+  .playlist li .meta{ flex:1; min-width:0; }
+  .playlist li .ttl{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .playlist li .art{ font-size:10px; opacity:.6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .playlist li .dur{ font-family: ui-monospace, Consolas, monospace; font-size:10.5px; opacity:.65; flex:0 0 auto; }
+  .playlist li.playing{ background: var(--highlight); background-image: var(--highlight); color: var(--highlight-text); }
+  .playlist li.playing .art, .playlist li.playing .dur, .playlist li.playing .idx{ opacity:.85; color:inherit; }
+  .playlist li:hover:not(.playing){ background: rgba(0,0,0,.06); }
+  .playlist .empty-row{ padding:14px; text-align:center; color:var(--muted); font-size:11.5px; cursor:default; }
+
+  .statusbar{
+    display:flex; justify-content:space-between;
+    padding:4px 9px; font-size:10.5px; color:var(--muted);
+    background: var(--face);
+    border-top:1px solid var(--edge-hi2);
+    box-shadow: inset 0 1px 0 var(--edge-lo);
+  }
+  html[data-theme="macosx"] .statusbar,
+  html[data-theme="macos9"] .statusbar{ box-shadow:none; border-top:1px solid rgba(0,0,0,.1); }
+
+  /* drag-and-drop highlight */
+  .window.drag-over .np-panel{ outline:2px dashed var(--accent); outline-offset:-2px; }
+
+  /* ---- about modal ---- */
+  .about-scrim{
+    position:fixed; inset:0; background:rgba(0,0,0,.35);
+    display:flex; align-items:center; justify-content:center; z-index:100;
+  }
+  .about-box{
+    width:280px; background:var(--face); border-radius: calc(var(--radius)/2);
+    padding:18px 16px 14px; text-align:center;
+    box-shadow: 0 20px 40px rgba(0,0,0,.4);
+  }
+  .about-box h2{ margin:0 0 8px; font-size:15px; }
+  .about-box p{ margin:0 0 14px; font-size:11.5px; color:var(--muted); line-height:1.5; }
+
+  /* ---- close-button toast ---- */
+  .toast{
+    position:fixed; bottom:22px; left:50%; transform:translate(-50%,8px);
+    background:rgba(20,20,20,.9); color:#fff; font-size:12px;
+    padding:8px 14px; border-radius:6px; z-index:100;
+    opacity:0; transition: opacity .18s ease, transform .18s ease;
+    pointer-events:none;
+  }
+  .toast.show{ opacity:1; transform:translate(-50%,0); }
+
+  @media (prefers-reduced-motion: reduce){
+    .window.shake{ animation:none; }
+    .toast{ transition:none; }
+  }
+
+  @media (max-width:400px){
+    .window{ width:100%; }
+    .theme-switch{ transform:translateX(-50%) scale(.92); }
+  }
+</style>
+</head>
+<body>
+
+<div class="theme-switch" role="group" aria-label="Choose an era">
+  <button data-theme-btn="win95" class="active">Windows 95</button>
+  <button data-theme-btn="macos9">Mac OS 9</button>
+  <button data-theme-btn="macosx">Mac OS X</button>
+</div>
+
+<section class="window" id="window">
+  <header class="titlebar" id="titlebar">
+    <div class="tl-lights">
+      <button class="lt close" id="closeBtn" aria-label="Close"></button>
+      <button class="lt min" aria-label="Minimize"></button>
+      <button class="lt max" aria-label="Zoom"></button>
+    </div>
+    <div class="tl-icon">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 8 L16 12 L9 16 Z" fill="currentColor"/></svg>
+    </div>
+    <div class="tl-title" id="titleText">Disc Player 95</div>
+    <div class="winbtns">
+      <button aria-label="Minimize">_</button>
+      <button aria-label="Zoom">□</button>
+      <button aria-label="Close" id="closeBtnWin">×</button>
+    </div>
+  </header>
+
+  <nav class="menubar" id="menubar">
+    <div class="menu">
+      <button class="menu-trigger" data-menu="file">File</button>
+      <div class="menu-drop" data-menu-drop="file">
+        <button data-action="insert">Insert Disc…</button>
+        <button data-action="eject" id="ejectItem" disabled>Eject Disc</button>
+      </div>
+    </div>
+    <div class="menu">
+      <button class="menu-trigger" data-menu="help">Help</button>
+      <div class="menu-drop" data-menu-drop="help">
+        <button data-action="about">About Disc Player…</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="body-area">
+    <div class="np-panel" id="npPanel">
+      <div class="empty-state" id="emptyState">
+        <p>No Disc Inserted</p>
+        <button class="btn primary" id="insertBig">Insert Disc…</button>
+      </div>
+      <div class="np-content" id="npContent" hidden>
+        <canvas id="viz" width="320" height="46"></canvas>
+        <div class="np-title" id="npTitle">—</div>
+        <div class="np-artist" id="npArtist">—</div>
+        <div class="seek-track" id="seekTrack">
+          <div class="seek-fill" id="seekFill"></div>
+          <div class="seek-handle" id="seekHandle"></div>
+        </div>
+        <div class="time-row"><span id="curTime">0:00</span><span id="durTime">0:00</span></div>
+      </div>
+    </div>
+
+    <div class="transport" id="transport" hidden>
+      <button class="btn" id="btnPrev" aria-label="Previous track">
+        <svg viewBox="0 0 24 24"><rect x="4" y="5" width="2.4" height="14"/><path d="M19 5 L7 12 L19 19 Z"/></svg>
+      </button>
+      <button class="btn play" id="btnPlay" aria-label="Play">
+        <svg id="playGlyph" viewBox="0 0 24 24"><path d="M6 4 L19 12 L6 20 Z"/></svg>
+      </button>
+      <button class="btn" id="btnStop" aria-label="Stop">
+        <svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14"/></svg>
+      </button>
+      <button class="btn" id="btnNext" aria-label="Next track">
+        <svg viewBox="0 0 24 24"><path d="M5 5 L17 12 L5 19 Z"/><rect x="17.6" y="5" width="2.4" height="14"/></svg>
+      </button>
+      <div class="volume-wrap">
+        <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16.5 9a5 5 0 0 1 0 6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+        <input type="range" id="volSlider" min="0" max="1" step="0.01" value="0.8" aria-label="Volume">
+      </div>
+    </div>
+
+    <div class="playlist-wrap">
+      <ul class="playlist" id="playlist">
+        <li class="empty-row">Insert a disc to see your tracks here.</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer class="statusbar">
+    <span id="statusLeft">No disc</span>
+    <span id="statusRight"></span>
+  </footer>
+</section>
+
+<input type="file" id="fileInput" accept="audio/*" multiple hidden>
+<audio id="audioEl" preload="metadata"></audio>
+
+<div class="about-scrim" id="aboutScrim" hidden>
+  <div class="about-box">
+    <h2 id="aboutTitle">Disc Player</h2>
+    <p>Loads whatever audio files you give it and plays them back, with a real spectrum visualiser underneath. No cloud, no login, nothing leaves your browser. Three coats of paint, same engine.</p>
+    <button class="btn primary" id="aboutClose">OK</button>
+  </div>
+</div>
+
+<div class="toast" id="closeToast">You can't close a website. Nice try though.</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ============================================================
+  // THEME SWITCHING
+  // ============================================================
+  const TITLES = { win95:"Disc Player 95", macos9:"Disc Player 9", macosx:"Disc Player X" };
+  const root = document.documentElement;
+  const titleText = document.getElementById('titleText');
+  const aboutTitle = document.getElementById('aboutTitle');
+
+  function setTheme(theme){
+    root.setAttribute('data-theme', theme);
+    titleText.textContent = TITLES[theme];
+    aboutTitle.textContent = TITLES[theme];
+    document.title = TITLES[theme];
+    document.querySelectorAll('[data-theme-btn]').forEach(b => b.classList.toggle('active', b.dataset.themeBtn === theme));
+  }
+  document.querySelectorAll('[data-theme-btn]').forEach(b => {
+    b.addEventListener('click', () => setTheme(b.dataset.themeBtn));
+  });
+  setTheme('win95'); // the CSS keys off html[data-theme], so this has to run before anything renders meaningfully
+
+  // ============================================================
+  // STATE + ELEMENT REFS
+  // ============================================================
+  const audioEl      = document.getElementById('audioEl');
+  const fileInput     = document.getElementById('fileInput');
+  const windowEl       = document.getElementById('window');
+  const emptyState    = document.getElementById('emptyState');
+  const npContent      = document.getElementById('npContent');
+  const npTitle        = document.getElementById('npTitle');
+  const npArtist       = document.getElementById('npArtist');
+  const seekTrack       = document.getElementById('seekTrack');
+  const seekFill        = document.getElementById('seekFill');
+  const seekHandle      = document.getElementById('seekHandle');
+  const curTimeEl       = document.getElementById('curTime');
+  const durTimeEl       = document.getElementById('durTime');
+  const transport       = document.getElementById('transport');
+  const playlistEl      = document.getElementById('playlist');
+  const btnPlay         = document.getElementById('btnPlay');
+  const playGlyph       = document.getElementById('playGlyph');
+  const volSlider       = document.getElementById('volSlider');
+  const statusLeft      = document.getElementById('statusLeft');
+  const statusRight     = document.getElementById('statusRight');
+  const ejectItem       = document.getElementById('ejectItem');
+  const canvas          = document.getElementById('viz');
+  const ctx             = canvas.getContext('2d');
+
+  let tracks = [];        // { file, url, title, artist, duration }
+  let currentIndex = -1;
+  let isPlaying = false;
+
+  const PLAY_PATH  = "M6 4 L19 12 L6 20 Z";
+  const PAUSE_PATH = "M6 4h4v16H6zM14 4h4v16h-4z"; // drawn as two bars via a single path, cheaper than swapping nodes
+
+  function fmt(sec){
+    if(!isFinite(sec) || sec == null) return "0:00";
+    sec = Math.max(0, Math.round(sec));
+    return Math.floor(sec/60) + ":" + String(sec%60).padStart(2,'0');
+  }
+
+  function parseFilename(name){
+    const base = name.replace(/\.[a-zA-Z0-9]+$/, '');
+    const m = base.match(/^(.+?)\s*-\s*(.+)$/);
+    if(m) return { artist: m[1].trim(), title: m[2].trim() };
+    return { artist: "Unknown Artist", title: base };
+  }
+
+  // ============================================================
+  // LOADING FILES ("inserting a disc")
+  // ============================================================
+  function insertFiles(fileList){
+    const files = Array.from(fileList).filter(f => f.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(f.name));
+    if(files.length === 0) return;
+
+    if(tracks.length) tracks.forEach(t => URL.revokeObjectURL(t.url)); // swapping discs without ejecting first shouldn't leak the old one
+
+    tracks = files.map(file => {
+      const { artist, title } = parseFilename(file.name);
+      return { file, url: URL.createObjectURL(file), title, artist, duration: null };
+    });
+    currentIndex = -1;
+    emptyState.hidden = true;
+    npContent.hidden = false;
+    transport.hidden = false;
+    ejectItem.disabled = false;
+    statusLeft.textContent = "Reading disc…";
+    renderPlaylist();
+    probeDurations();
+    loadTrack(0);
+  }
+
+  function probeDurations(){
+    tracks.forEach((t, i) => {
+      const probe = new Audio();
+      probe.preload = 'metadata';
+      probe.src = t.url;
+      probe.addEventListener('loadedmetadata', () => {
+        t.duration = probe.duration;
+        const durEl = playlistEl.querySelector(`li[data-index="${i}"] .dur`);
+        if(durEl) durEl.textContent = fmt(t.duration);
+        if(i === currentIndex) durTimeEl.textContent = fmt(t.duration);
+        updateStatus();
+      }, { once:true });
+    });
+  }
+
+  function ejectDisc(){
+    audioEl.pause();
+    audioEl.removeAttribute('src');
+    tracks.forEach(t => URL.revokeObjectURL(t.url));
+    tracks = [];
+    currentIndex = -1;
+    isPlaying = false;
+    emptyState.hidden = false;
+    npContent.hidden = true;
+    transport.hidden = true;
+    ejectItem.disabled = true;
+    playlistEl.innerHTML = '<li class="empty-row">Insert a disc to see your tracks here.</li>';
+    statusLeft.textContent = "No disc";
+    statusRight.textContent = "";
+    setPlayIcon(false);
+  }
+
+  // ============================================================
+  // PLAYLIST
+  // ============================================================
+  function renderPlaylist(){
+    playlistEl.innerHTML = '';
+    tracks.forEach((t, i) => {
+      const li = document.createElement('li');
+      li.dataset.index = i;
+      li.innerHTML = `<span class="idx">${String(i+1).padStart(2,'0')}</span>
+        <span class="meta"><span class="ttl">${escapeHtml(t.title)}</span><span class="art">${escapeHtml(t.artist)}</span></span>
+        <span class="dur">${t.duration ? fmt(t.duration) : '--:--'}</span>`;
+      li.addEventListener('click', () => { loadTrack(i); playAudio(); });
+      playlistEl.appendChild(li);
+    });
+  }
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function highlightPlaylist(){
+    [...playlistEl.children].forEach(li => li.classList.toggle('playing', Number(li.dataset.index) === currentIndex));
+  }
+
+  // ============================================================
+  // PLAYBACK
+  // ============================================================
+  function loadTrack(i){
+    if(tracks.length === 0) return;
+    currentIndex = (i + tracks.length) % tracks.length;
+    const t = tracks[currentIndex];
+    audioEl.src = t.url;
+    npTitle.textContent = t.title;
+    npArtist.textContent = t.artist;
+    durTimeEl.textContent = t.duration ? fmt(t.duration) : '0:00';
+    curTimeEl.textContent = "0:00";
+    seekFill.style.width = "0%";
+    seekHandle.style.left = "0%";
+    highlightPlaylist();
+    updateStatus();
+  }
+
+  function setPlayIcon(playing){
+    playGlyph.setAttribute('d', playing ? PAUSE_PATH : PLAY_PATH);
+    btnPlay.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  }
+
+  function playAudio(){
+    if(currentIndex === -1 && tracks.length) loadTrack(0);
+    if(currentIndex === -1) return;
+    ensureAudioGraph();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    audioEl.play().then(() => {
+      isPlaying = true;
+      setPlayIcon(true);
+      updateStatus();
+      startVisualizer();
+    }).catch(() => { /* autoplay refused or file unreadable — nothing to recover from here */ });
+  }
+  function pauseAudio(){
+    audioEl.pause();
+    isPlaying = false;
+    setPlayIcon(false);
+    updateStatus();
+    stopVisualizer();
+  }
+  function stopAudio(){
+    audioEl.pause();
+    audioEl.currentTime = 0;
+    isPlaying = false;
+    setPlayIcon(false);
+    updateStatus();
+    stopVisualizer();
+    renderProgress();
+  }
+  function togglePlay(){ isPlaying ? pauseAudio() : playAudio(); }
+
+  function nextTrack(auto){
+    if(tracks.length === 0) return;
+    loadTrack(currentIndex + 1);
+    if(isPlaying || auto) playAudio();
+  }
+  function prevTrack(){
+    if(tracks.length === 0) return;
+    // if we're more than 3s into the track, "previous" restarts it — every player does this
+    if(audioEl.currentTime > 3){ audioEl.currentTime = 0; return; }
+    loadTrack(currentIndex - 1);
+    if(isPlaying) playAudio();
+  }
+
+  audioEl.addEventListener('ended', () => nextTrack(true));
+  audioEl.addEventListener('timeupdate', renderProgress);
+  audioEl.addEventListener('loadedmetadata', () => {
+    if(currentIndex > -1 && !tracks[currentIndex].duration){
+      tracks[currentIndex].duration = audioEl.duration;
+      durTimeEl.textContent = fmt(audioEl.duration);
+    }
+  });
+
+  function renderProgress(){
+    const dur = audioEl.duration || (currentIndex > -1 ? tracks[currentIndex].duration : 0) || 0;
+    const ratio = dur ? audioEl.currentTime / dur : 0;
+    seekFill.style.width = (ratio*100) + "%";
+    seekHandle.style.left = (ratio*100) + "%";
+    curTimeEl.textContent = fmt(audioEl.currentTime);
+  }
+
+  function updateStatus(){
+    if(tracks.length === 0){ statusLeft.textContent = "No disc"; statusRight.textContent = ""; return; }
+    statusLeft.textContent = isPlaying ? "Playing" : "Paused";
+    const known = tracks.filter(t => t.duration).reduce((s,t) => s+t.duration, 0);
+    statusRight.textContent = `${tracks.length} track${tracks.length===1?'':'s'} · ${fmt(known)}`;
+  }
+
+  // ---- seeking: click or drag the bar ----
+  function seekFromEvent(e){
+    const rect = seekTrack.getBoundingClientRect();
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const ratio = Math.min(1, Math.max(0, x / rect.width));
+    const dur = audioEl.duration || (currentIndex > -1 ? tracks[currentIndex].duration : 0) || 0;
+    audioEl.currentTime = ratio * dur;
+    renderProgress();
+  }
+  let seeking = false;
+  seekTrack.addEventListener('pointerdown', e => { seeking = true; seekFromEvent(e); });
+  window.addEventListener('pointermove', e => { if(seeking) seekFromEvent(e); });
+  window.addEventListener('pointerup', () => { seeking = false; });
+
+  // ---- volume ----
+  volSlider.addEventListener('input', () => { audioEl.volume = Number(volSlider.value); });
+  audioEl.volume = Number(volSlider.value);
+
+  // ---- transport buttons ----
+  document.getElementById('btnPlay').addEventListener('click', togglePlay);
+  document.getElementById('btnStop').addEventListener('click', stopAudio);
+  document.getElementById('btnNext').addEventListener('click', () => nextTrack(false));
+  document.getElementById('btnPrev').addEventListener('click', prevTrack);
+
+  // ============================================================
+  // FILE INPUT + DRAG & DROP
+  // ============================================================
+  document.getElementById('insertBig').addEventListener('click', () => fileInput.click());
+  document.querySelector('[data-action="insert"]').addEventListener('click', () => { closeMenus(); fileInput.click(); });
+  document.querySelector('[data-action="eject"]').addEventListener('click', () => { closeMenus(); ejectDisc(); });
+  fileInput.addEventListener('change', () => insertFiles(fileInput.files));
+
+  ['dragenter','dragover'].forEach(ev => windowEl.addEventListener(ev, e => { e.preventDefault(); windowEl.classList.add('drag-over'); }));
+  ['dragleave','drop'].forEach(ev => windowEl.addEventListener(ev, e => { e.preventDefault(); windowEl.classList.remove('drag-over'); }));
+  windowEl.addEventListener('drop', e => { if(e.dataTransfer.files.length) insertFiles(e.dataTransfer.files); });
+
+  // ============================================================
+  // MENUS
+  // ============================================================
+  function closeMenus(){
+    document.querySelectorAll('.menu-drop.open').forEach(m => m.classList.remove('open'));
+    document.querySelectorAll('.menu-trigger.open').forEach(m => m.classList.remove('open'));
+  }
+  document.querySelectorAll('.menu-trigger').forEach(trigger => {
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const name = trigger.dataset.menu;
+      const drop = document.querySelector(`[data-menu-drop="${name}"]`);
+      const wasOpen = drop.classList.contains('open');
+      closeMenus();
+      if(!wasOpen){ drop.classList.add('open'); trigger.classList.add('open'); }
+    });
+  });
+  document.addEventListener('click', closeMenus);
+
+  document.querySelector('[data-action="about"]').addEventListener('click', () => {
+    closeMenus();
+    document.getElementById('aboutScrim').hidden = false;
+  });
+  document.getElementById('aboutClose').addEventListener('click', () => { document.getElementById('aboutScrim').hidden = true; });
+
+  // ============================================================
+  // CLOSE BUTTON EASTER EGG — you cannot, in fact, close a website
+  // ============================================================
+  let toastTimer = null;
+  function cantClose(){
+    windowEl.classList.remove('shake'); void windowEl.offsetWidth; windowEl.classList.add('shake');
+    const toast = document.getElementById('closeToast');
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+  }
+  document.getElementById('closeBtn').addEventListener('click', cantClose);
+  document.getElementById('closeBtnWin').addEventListener('click', cantClose);
+
+  // ============================================================
+  // VISUALIZER — real FFT data off the actual playing audio
+  // ============================================================
+  let audioCtx, analyser, sourceNode, rafId;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function ensureAudioGraph(){
+    if(audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    sourceNode = audioCtx.createMediaElementSource(audioEl);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 64;
+    sourceNode.connect(analyser);
+    analyser.connect(audioCtx.destination);
+  }
+
+  function startVisualizer(){
+    if(reduceMotion){ drawStaticBars(); return; }
+    if(!analyser) return;
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    (function loop(){
+      rafId = requestAnimationFrame(loop);
+      analyser.getByteFrequencyData(data);
+      drawBars(data);
+    })();
+  }
+  function stopVisualizer(){
+    cancelAnimationFrame(rafId);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+  function drawStaticBars(){
+    const data = new Uint8Array(16).fill(40);
+    drawBars(data);
+  }
+
+  function drawBars(data){
+    const theme = root.getAttribute('data-theme');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    const barCount = 20;
+    const step = Math.floor(data.length / barCount) || 1;
+    const gap = 2;
+    const barW = (w - gap*(barCount-1)) / barCount;
+
+    for(let i=0;i<barCount;i++){
+      let v = data[i*step] / 255;
+      let barH;
+
+      if(theme === 'win95'){
+        // quantized LCD segments — the winamp look
+        const steps = 8;
+        const lvl = Math.round(v*steps);
+        barH = (lvl/steps) * (h-4);
+        ctx.fillStyle = '#00ff33';
+        const segH = (h-4)/steps;
+        for(let s=0;s<lvl;s++){
+          ctx.fillRect(i*(barW+gap), h - 2 - (s+1)*segH + 1, barW, segH-1.5);
+        }
+        continue;
+      }
+
+      barH = v * (h-4);
+      const x = i*(barW+gap), y = h - barH - 2;
+      if(theme === 'macosx'){
+        const grad = ctx.createLinearGradient(0,y,0,h-2);
+        grad.addColorStop(0, '#bfe0ff');
+        grad.addColorStop(0.5, '#2f7dee');
+        grad.addColorStop(1, '#0a3fae');
+        ctx.fillStyle = grad;
+      } else {
+        ctx.fillStyle = '#4a7fb5';
+      }
+      ctx.fillRect(x, y, barW, barH);
+    }
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if(e.code === 'Space' && document.activeElement.tagName !== 'BUTTON' && document.activeElement.tagName !== 'INPUT'){
+      e.preventDefault(); togglePlay();
+    }
+  });
+
+  updateStatus();
+})();
+</script>
+
+</body>
+</html>

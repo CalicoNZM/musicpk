@@ -1,0 +1,18 @@
+{
+  "name": "disc-player-fullstack",
+  "version": "1.0.0",
+  "description": "Disc Player - retro-styled dual-stream music player with local and community playback",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "init-db": "node server.js --seed"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "sqlite3": "^5.1.6",
+    "multer": "^1.4.5-lts.1",
+    "cors": "^2.8.5"
+  }
+}

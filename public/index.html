@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MUSiCPK — wiki for niches</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="#" data-nav="library">MUSiCPK<span class="brand-sub">wiki</span></a>
+    <nav class="main-nav" aria-label="Primary">
+      <button class="nav-btn active" data-nav="library">Your Discs</button>
+      <button class="nav-btn" data-nav="genres">Genres</button>
+      <button class="nav-btn" data-nav="artists">Artists</button>
+      <button class="nav-btn" data-nav="albums">Albums</button>
+      <button class="nav-btn" data-nav="rulebook">TOS</button>
+    </nav>
+    <div class="header-right">
+      <span id="authStatus" class="auth-status">not signed in</span>
+      <button id="authBtn" class="btn small">Sign in</button>
+      <button id="logoutBtn" class="btn small" hidden>Sign out</button>
+      <button id="settingsBtn" class="btn small" aria-label="Settings">Settings</button>
+    </div>
+  </div>
+</header>
+
+<div class="notice-bar">Human music only. No AI-generated tracks. <a href="#" data-nav="rulebook">Read TOS</a> • 100+ artist niches • 32 genre boards • Import from Apple Music / Spotify for metadata, then upload your file.</div>
+
+<main class="layout">
+  <section class="content" id="contentArea">
+    <!-- Library -->
+    <div class="view active" data-view="library">
+      <div class="view-head">
+        <h1>Your Discs</h1>
+        <p class="muted">Local files stay in this browser (IndexedDB). Community tracks appear in Genres / Artists / Albums when you are signed in.</p>
+        <div class="view-actions">
+          <button class="btn" id="insertBig">Insert Disc</button>
+          <button class="btn" id="clearPersistBtn">Clear local index</button>
+          <span id="idbStatus" class="muted small"></span>
+          <span id="personalCount" class="muted small"></span>
+        </div>
+      </div>
+      <div class="player-card" id="playerCard">
+        <div class="empty-state" id="emptyState"><p>No disc inserted. Insert local files or sign in and play a community track.</p></div>
+        <div id="npContent" hidden>
+          <canvas id="viz" width="720" height="56"></canvas>
+          <div class="np-meta"><div class="np-title" id="npTitle">-</div><div class="np-artist" id="npArtist">-</div><div class="np-tags" id="npTags"></div><div class="muted small" id="npDesc"></div></div>
+          <div class="seek-track" id="seekTrack"><div class="seek-fill" id="seekFill"></div><div class="seek-handle" id="seekHandle"></div></div>
+          <div class="time-row"><span id="curTime">0:00</span><span id="durTime">0:00</span><span id="srcBadge" class="src-badge">Local</span></div>
+          <div class="transport" id="transport">
+            <button class="btn" id="btnPrev">Prev</button>
+            <button class="btn primary" id="btnPlay"><span id="playLabel">Play</span></button>
+            <button class="btn" id="btnStop">Stop</button>
+            <button class="btn" id="btnNext">Next</button>
+            <label class="volume-wrap">Vol <input type="range" id="volSlider" min="0" max="1" step="0.01" value="0.8" /></label>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Queue</h2>
+        <ul class="queue-list" id="playlist"></ul>
+        <h3>Local library</h3>
+        <ul class="mini-list" id="personalList"></ul>
+      </div>
+    </div>
+
+    <!-- Genres -->
+    <div class="view" data-view="genres">
+      <div class="view-head"><h1>Genres</h1><p class="muted">32 niche boards. Pick one to see tracks and discussion. Sign in to post.</p></div>
+      <div class="genre-grid" id="genreGrid"></div>
+      <div class="card">
+        <h2>All community tracks</h2>
+        <div class="filter-row">
+          <select id="genreFilter" class="select-input"><option value="all">All genres</option><option value="lofi">lofi</option><option value="chiptune">chiptune</option><option value="indie">indie</option><option value="house">house</option><option value="ambient">ambient</option><option value="experimental">experimental</option><option value="folk">folk</option><option value="punk">punk</option><option value="hip-hop">hip-hop</option><option value="rnb">rnb</option><option value="soul">soul</option><option value="jazz">jazz</option><option value="classical">classical</option><option value="techno">techno</option><option value="dnb">dnb</option><option value="dubstep">dubstep</option><option value="shoegaze">shoegaze</option><option value="dreampop">dreampop</option><option value="metal">metal</option><option value="hardcore">hardcore</option><option value="emo">emo</option><option value="post-rock">post-rock</option><option value="krautrock">krautrock</option><option value="psychedelia">psychedelia</option><option value="synthpop">synthpop</option><option value="vaporwave">vaporwave</option><option value="hyperpop">hyperpop</option><option value="city-pop">city-pop</option><option value="disco">disco</option><option value="afrobeat">afrobeat</option><option value="reggae">reggae</option><option value="country">country</option></select>
+          <input type="search" id="communitySearch" placeholder="Search title, artist, description" class="text-input" style="flex:1" />
+          <select id="sortSelect" class="select-input"><option value="newest">Newest</option><option value="plays">Most played</option><option value="likes">Most liked</option></select>
+          <button class="btn small" id="refreshCommunityBtn">Refresh</button>
+        </div>
+        <ul class="track-list" id="genreTrackList"></ul>
+      </div>
+    </div>
+
+    <!-- Genre detail -->
+    <div class="view" data-view="genre-detail">
+      <button class="btn small" data-nav="genres">Back to genres</button>
+      <div class="view-head"><h1 id="genreTitle">Genre</h1><p id="genreDesc" class="muted"></p></div>
+      <div class="two-col">
+        <div class="card">
+          <h2>Tracks in this niche</h2>
+          <ul class="track-list" id="genreDetailTracks"></ul>
+          <form id="publishForm" class="publish-form">
+            <h3>Publish a track</h3>
+            <div class="import-box">
+              <strong class="small">Import from Spotify / Apple Music (metadata only)</strong>
+              <p class="muted small">Paste a public link to prefill title/artist. You still must upload your own audio file. No AI.</p>
+              <div class="row">
+                <input type="url" id="spotifyUrl" placeholder="https://open.spotify.com/track/..." class="text-input" style="flex:1" />
+                <button type="button" class="btn small" id="importSpotifyBtn">Import Spotify</button>
+              </div>
+              <div class="row" style="margin-top:6px">
+                <input type="url" id="appleUrl" placeholder="https://music.apple.com/... or search term" class="text-input" style="flex:1" />
+                <button type="button" class="btn small" id="importAppleBtn">Import Apple</button>
+              </div>
+              <p id="importStatus" class="muted small"></p>
+            </div>
+            <label class="field"><span>Audio file *</span><input type="file" name="audio" accept="audio/*" required /></label>
+            <label class="field"><span>Title *</span><input type="text" name="title" required maxlength="120" class="text-input" /></label>
+            <label class="field"><span>Artist (creates niche if new) *</span><input type="text" name="artist" required maxlength="80" class="text-input" /></label>
+            <label class="field"><span>Album (optional)</span><select name="album_id" id="publishAlbumSelect" class="select-input"><option value="">No album - single</option></select></label>
+            <label class="field"><span>Year</span><input type="number" name="year" min="1970" max="2026" class="text-input" /></label>
+            <label class="field"><span>Tags</span><input type="text" name="tags" placeholder="live, demo, cassette" class="text-input" /></label>
+            <label class="field"><span>Description — recording info, credits, provenance</span><textarea name="description" rows="2" placeholder="Recorded on 4-track in Portland, mixed at home. Guitar: J. Doe. Cite sources." class="text-input"></textarea></label>
+            <label class="field"><span>Credits</span><input type="text" name="credits" placeholder="Produced by ..." class="text-input" /></label>
+            <label class="check"><input type="checkbox" name="no_ai" required /> I confirm this is human-made music, not AI-generated. <a href="#" data-nav="rulebook">TOS Rule 1</a></label>
+            <button type="submit" class="btn primary">Publish</button><span id="publishStatus" class="muted small"></span>
+          </form>
+        </div>
+        <div class="card">
+          <h2>Discussion</h2>
+          <form id="threadForm" class="stack">
+            <input type="text" id="threadTitle" placeholder="Start a thread title" maxlength="120" class="text-input" required />
+            <textarea id="threadBody" placeholder="Topic for this genre" rows="3" class="text-input"></textarea>
+            <button type="submit" class="btn">Post thread</button>
+          </form>
+          <ul class="thread-list" id="threadList"></ul>
+          <div id="threadDetail" hidden>
+            <h3 id="threadDetailTitle"></h3><p id="threadDetailBody" class="muted small"></p>
+            <ul class="post-list" id="postList"></ul>
+            <form id="postForm" class="stack"><textarea id="postBody" placeholder="Reply" rows="2" class="text-input" required></textarea><button type="submit" class="btn small">Reply</button></form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Artists -->
+    <div class="view" data-view="artists">
+      <div class="view-head">
+        <h1>Artists — 100+ niches</h1>
+        <p class="muted">Wiki-style. Anyone signed in can edit. Popular artists are shells until the community expands them. Click to view discography and albums.</p>
+        <div class="filter-row">
+          <input type="search" id="artistSearch" placeholder="Search 100+ artists" class="text-input" style="flex:1" />
+          <button class="btn" id="createArtistBtn">Create niche</button>
+        </div>
+      </div>
+      <div class="filter-row">
+        <button class="chip active" data-artist-sort="name">A-Z</button>
+        <button class="chip" data-artist-sort="popular">Popular</button>
+      </div>
+      <ul class="artist-grid" id="artistList"></ul>
+      <div class="card" id="createArtistCard" hidden>
+        <h2>Create artist niche</h2>
+        <form id="artistCreateForm" class="stack">
+          <label class="field"><span>Name *</span><input type="text" name="name" required maxlength="80" class="text-input" /></label>
+          <label class="field"><span>Bio — descriptive, cite sources</span><textarea name="bio" rows="3" class="text-input" placeholder="Formation, style, key releases, influences..."></textarea></label>
+          <label class="field"><span>Location</span><input type="text" name="location" class="text-input" /></label>
+          <label class="field"><span>Genres</span><input type="text" name="genres" placeholder="indie, folk" class="text-input" /></label>
+          <label class="field"><span>Members</span><input type="text" name="members" placeholder="Names, instruments" class="text-input" /></label>
+          <label class="field"><span>Label</span><input type="text" name="label" class="text-input" /></label>
+          <label class="field"><span>Website</span><input type="url" name="website" placeholder="https://..." class="text-input" /></label>
+          <label class="field"><span>Formed year</span><input type="number" name="formed_year" class="text-input" /></label>
+          <button type="submit" class="btn primary">Create</button><span id="artistCreateStatus" class="muted small"></span>
+        </form>
+      </div>
+    </div>
+
+    <!-- Artist detail -->
+    <div class="view" data-view="artist-detail">
+      <button class="btn small" data-nav="artists">Back to artists</button>
+      <div class="card">
+        <h1 id="artistName"></h1>
+        <p class="muted small" id="artistMeta"></p>
+        <div id="artistBio" class="prose"></div>
+        <button class="btn small" id="editArtistBtn">Edit wiki</button>
+        <form id="artistEditForm" class="stack" hidden>
+          <label class="field"><span>Bio</span><textarea name="bio" id="editBio" rows="5" class="text-input"></textarea></label>
+          <label class="field"><span>Location</span><input type="text" name="location" id="editLocation" class="text-input" /></label>
+          <label class="field"><span>Genres</span><input type="text" name="genres" id="editGenres" class="text-input" /></label>
+          <label class="field"><span>Members</span><input type="text" name="members" id="editMembers" class="text-input" /></label>
+          <label class="field"><span>Label</span><input type="text" name="label" id="editLabel" class="text-input" /></label>
+          <label class="field"><span>Website</span><input type="url" name="website" id="editWebsite" class="text-input" /></label>
+          <label class="field"><span>Formed year</span><input type="number" name="formed_year" id="editYear" class="text-input" /></label>
+          <button type="submit" class="btn primary">Save edit</button><span id="editStatus" class="muted small"></span>
+        </form>
+        <div class="muted small" id="artistEdits"></div>
+      </div>
+      <div class="card">
+        <h2>Albums</h2>
+        <ul class="album-list" id="artistAlbums"></ul>
+        <form id="albumCreateForm" class="stack">
+          <h3>Create album for this artist</h3>
+          <div class="import-box">
+            <strong class="small">Import album from Apple Music / Spotify</strong>
+            <p class="muted small">Paste an Apple Music album link to auto-fill title, year, and cover. Spotify gives title only. You can then attach tracks later.</p>
+            <div class="row">
+              <input type="url" id="albumSpotifyUrl" placeholder="https://open.spotify.com/album/..." class="text-input" style="flex:1" />
+              <button type="button" class="btn small" id="importAlbumSpotifyBtn">Import Spotify Album</button>
+            </div>
+            <div class="row" style="margin-top:6px">
+              <input type="url" id="albumAppleUrl" placeholder="https://music.apple.com/.../album/... or search" class="text-input" style="flex:1" />
+              <button type="button" class="btn small" id="importAlbumAppleBtn">Import Apple Album</button>
+            </div>
+            <p id="albumImportStatus" class="muted small"></p>
+            <div id="albumImportPreview" class="small" hidden></div>
+          </div>
+          <label class="field"><span>Album title *</span><input type="text" name="title" id="albumTitleInput" required maxlength="120" class="text-input" /></label>
+          <label class="field"><span>Year</span><input type="number" name="year" id="albumYearInput" class="text-input" /></label>
+          <label class="field"><span>Genre</span><input type="text" name="genre" id="albumGenreInput" class="text-input" /></label>
+          <label class="field"><span>Label</span><input type="text" name="label" id="albumLabelInput" class="text-input" /></label>
+          <label class="field"><span>Description</span><textarea name="description" id="albumDescInput" rows="2" class="text-input" placeholder="Recording context, studio, lineage"></textarea></label>
+          <label class="field"><span>Cover URL (optional)</span><input type="url" name="cover_url" id="albumCoverInput" placeholder="https://..." class="text-input" /></label>
+          <button type="submit" class="btn">Create album</button><span id="albumCreateStatus" class="muted small"></span>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Tracks</h2>
+        <ul class="track-list" id="artistTrackList"></ul>
+      </div>
+    </div>
+
+    <!-- Albums overview -->
+    <div class="view" data-view="albums">
+      <div class="view-head"><h1>Albums</h1><p class="muted">Community-built discography. Create an album in an artist niche, then attach tracks to it.</p>
+        <input type="search" id="albumSearch" placeholder="Search albums" class="text-input" />
+      </div>
+      <ul class="album-list" id="albumList"></ul>
+    </div>
+
+    <!-- Album detail -->
+    <div class="view" data-view="album-detail">
+      <button class="btn small" data-nav="albums">Back to albums</button>
+      <div class="card">
+        <h1 id="albumTitle"></h1>
+        <p class="muted small" id="albumMeta"></p>
+        <div id="albumDesc" class="prose"></div>
+      </div>
+      <div class="card">
+        <h2>Tracks on this album</h2>
+        <ul class="track-list" id="albumTrackList"></ul>
+      </div>
+    </div>
+
+    <!-- TOS / Rulebook -->
+    <div class="view" data-view="rulebook">
+      <div class="view-head"><h1>Terms & Rulebook</h1><p class="muted">By signing in you agree to these terms. Last updated 2026-08-27.</p></div>
+      <div class="card" id="rulebookCard"></div>
+    </div>
+  </section>
+
+  <aside class="sidebar">
+    <div class="card"><h2>Now playing</h2><p id="sideTitle" class="muted small">Nothing playing</p><p id="sideArtist" class="small"></p></div>
+    <div class="card" id="trackDetailCard" hidden>
+      <h2 id="tdTitle"></h2><p id="tdArtist" class="muted small"></p><p id="tdMeta" class="muted small"></p><p id="tdDesc" class="small"></p><p id="tdCredits" class="muted small"></p>
+      <div class="like-row"><button class="btn small" id="likeBtn">Like</button><span id="likeCount" class="muted small"></span><button class="btn small" id="downloadBtn">Download</button><span id="playCount" class="muted small"></span></div>
+      <h3>Comments</h3><ul class="comment-list" id="commentList"></ul>
+      <form id="commentForm" class="stack"><textarea id="commentText" placeholder="Write a comment" rows="2" maxlength="500" class="text-input" required></textarea><button type="submit" class="btn small">Post comment</button></form>
+    </div>
+    <div class="card"><h2>Popular niches</h2><ul class="mini-list" id="popularArtists"></ul></div>
+  </aside>
+</main>
+
+<!-- Settings -->
+<div class="modal" id="settingsModal" hidden>
+  <div class="modal-box wide">
+    <h2>Display Settings</h2>
+    <p class="muted small">Make MUSiCPK yours. Colours and layout save in this browser.</p>
+    <div class="settings-grid">
+      <div class="settings-col">
+        <h3>Colour</h3>
+        <label class="field"><span>Theme preset</span>
+          <select id="themePreset" class="select-input">
+            <option value="warm">Warm Paper — default</option>
+            <option value="midnight">Midnight — dark</option>
+            <option value="ocean">Ocean — blue</option>
+            <option value="forest">Forest — green</option>
+            <option value="blush">Blush — pink</option>
+            <option value="ink">Ink — high contrast</option>
+            <option value="solar">Solar — light yellow</option>
+            <option value="custom">Custom…</option>
+          </select>
+        </label>
+        <div class="row" id="customColours" hidden>
+          <label class="field"><span>Background</span><input type="color" id="colPaper" value="#f6f1e7" /></label>
+          <label class="field"><span>Card</span><input type="color" id="colCard" value="#ffffff" /></label>
+          <label class="field"><span>Accent</span><input type="color" id="colAccent" value="#c14b2a" /></label>
+          <label class="field"><span>Text</span><input type="color" id="colInk" value="#1a1a18" /></label>
+        </div>
+        <div class="card" style="margin-top:10px; padding:8px">
+          <strong class="small">Saveable themes</strong>
+          <p class="muted small" style="margin:4px 0">Name your current colours and save them. Saved themes persist in this browser and can be exported.</p>
+          <div class="row">
+            <input type="text" id="newThemeName" placeholder="e.g. My Sunset" maxlength="30" class="text-input" style="flex:1" />
+            <button class="btn small" id="saveThemeBtn">Save current colours</button>
+          </div>
+          <ul class="mini-list" id="savedThemesList" style="margin-top:8px"></ul>
+          <div class="row" style="margin-top:6px">
+            <button class="btn small" id="exportThemesBtn">Export JSON</button>
+            <label class="btn small" aria-label="Import"><input type="file" id="importThemesFile" accept="application/json" hidden />Import JSON</label>
+          </div>
+        </div>
+      </div>
+      <div class="settings-col">
+        <h3>Layout</h3>
+        <label class="field"><span>Content width</span>
+          <select id="layoutWidth" class="select-input">
+            <option value="1100">Standard — 1100px</option>
+            <option value="1400">Wide — 1400px</option>
+            <option value="900">Compact — 900px</option>
+            <option value="100%">Full — edge to edge</option>
+          </select>
+        </label>
+        <label class="field"><span>Sidebar</span>
+          <select id="sidebarPos" class="select-input">
+            <option value="right">Right</option>
+            <option value="left">Left</option>
+            <option value="hidden">Hidden</option>
+          </select>
+        </label>
+        <label class="field"><span>Density</span>
+          <select id="density" class="select-input">
+            <option value="comfortable">Comfortable</option>
+            <option value="compact">Compact</option>
+            <option value="spacious">Spacious</option>
+          </select>
+        </label>
+        <label class="field"><span>Genre grid</span>
+          <select id="genreLayout" class="select-input">
+            <option value="grid">Grid</option>
+            <option value="list">List</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="showViz" checked /> Show visualiser bars</label>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px; justify-content:space-between">
+      <button class="btn" id="settingsReset">Reset to defaults</button>
+      <button class="btn primary" id="settingsClose">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="authModal" hidden>
+  <div class="modal-box">
+    <h2 id="authTitle">Sign in</h2>
+    <p class="muted small">Sign in to publish, comment, edit wiki, and join genre boards. One account per person. No bots.</p>
+    <form id="authForm" class="stack">
+      <label class="field"><span>Username</span><input type="text" id="authUser" required pattern="[A-Za-z0-9_-]{3,20}" maxlength="20" class="text-input" /></label>
+      <label class="field"><span>Password</span><input type="password" id="authPass" required minlength="4" class="text-input" /></label>
+      <div class="row"><button type="submit" class="btn primary" id="authSubmit">Sign in</button><button type="button" class="btn" id="authSwitch">Create account instead</button><button type="button" class="btn" id="authCancel">Cancel</button></div>
+      <p id="authError" class="error"></p>
+    </form>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept="audio/*" multiple hidden />
+<audio id="audioEl" preload="metadata"></audio>
+<div class="toast" id="appToast"></div>
+<script src="app.js"></script>
+</body>
+</html>

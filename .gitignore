@@ -1,0 +1,9 @@
+disc.db
+uploads/*
+!uploads/.gitkeep
+node_modules/
+.env
+.DS_Store
+__pycache__/
+*.pyc
+/tmp/
