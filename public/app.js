@@ -929,6 +929,12 @@ function startViz(){
 }
 function stopViz(){ cancelAnimationFrame(rafId); ctx.clearRect(0,0,canvas.width,canvas.height); }
 
+// detect GitHub Pages static mode (no backend)
+fetch("/api/health", {cache:"no-store"}).then(r=>{ if(!r.ok) throw new Error(); }).catch(()=>{
+  const b=document.getElementById("pagesBanner"); if(b) b.hidden=false;
+  // also hint in community status
+  const cs=document.getElementById("communityStatus"); if(cs) cs.textContent="Static demo — backend not reachable on GitHub Pages.";
+});
 // init
 refreshMe().then(loadPersonal);
 loadPersonal();

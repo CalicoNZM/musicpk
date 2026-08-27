@@ -68,6 +68,11 @@ a:hover{text-decoration:underline}
   background: var(--accent-soft); border-bottom:1px solid var(--line); color: var(--ink);
   text-align:center; font-size:12px; padding:7px 10px;
 }
+.pages-banner{
+  background:#fff3cd; border:1px solid #e6c200; color:#5a4a00;
+  margin:8px auto; max-width: var(--max); padding:8px 12px; font-size:12px; text-align:center;
+}
+.pages-banner code{ background:#fff; padding:1px 4px; border:1px solid #d6cfbc; }
 
 .layout{
   max-width: var(--max); margin:0 auto; padding: var(--gap) 16px 40px;
