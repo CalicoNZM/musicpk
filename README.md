@@ -1,78 +1,60 @@
-# Disc Player - Full Stack Retro
+# MUSiCPK
 
-Dual-stream web music player. Left shelf is yours, right side is the wire.
+my attempt at a music wiki that doesn't feel like every other AI site. started as a single-file disc player and kept growing when people asked for a real community.
 
-Two sources, one transport:
+live at https://github.com/CalicoNZM/musicpk — run it locally with `python3 py_server.py` and open http://localhost:3000
 
-* **Your Discs** - local files via drag-drop or File > Insert Disc. Metadata and file blobs are persisted in IndexedDB so tracks survive reloads. Nothing leaves your disk unless you publish.
-* **Community & Artist Stream** - Express + SQLite backend. Tracks are uploaded via multipart, streamed with Range support, and carry play counts, likes, comments, tags, and artist profiles.
+---
 
-Retro OS themes via `[data-theme="..."]` CSS custom properties. No Inter, no purple AI palette, no bento.
+I wanted something like early RateYourMusic / Discogs but smaller. No AI tracks — that's the one hard rule. Everything is human-made or it gets removed. The rest is wiki-style: you sign in, you can make an artist niche, edit their bio, make an album page, attach tracks. Genres are actual boards (32 of them now, from lofi to city-pop) with threads, not just tags.
 
-## Themes
+**what's in here right now**
 
-* `win95` - Tahoma, navy titlebar, sharp bevels
-* `macos9` - Geneva/Charcoal, pinstripe titlebar
-* `macosx` - Lucida Grande, aqua highlight
-* `beos` - BeOS/Haiku: amber titlebar, warm grey desktop, Courier time display
-* `winamp` - Dark slate frame, lime LCD readout, segmented visualiser and EQ strip
-* `aqua` - iTunes 2 / Aqua Classic: pinstripe, brushed aluminum, graphite controls
-* `kde` - CDE/KDE: industrial teal/grey bevels, square borders
+- your discs — drop mp3/wav/flac onto the page, they stay in IndexedDB in your browser until you decide to publish. never leaves your disk unless you hit publish.
+- community — 105 artist stubs to start (pulled from my own list + a bunch of stubs the community can flesh out), albums you create inside an artist, tracks with real metadata: description, credits, year, label, provenance. you can paste an Apple Music album link and it pulls title/year/cover via iTunes Search so you don't retype everything. Spotify track/album paste works for title/artist via oEmbed (Spotify needs API for full tracklist, so Apple path is better for albums).
+- 32 genre boards, each with its own discussion. no bots, one account per person.
+- display settings — Settings button top right. warm paper is default but you can pick midnight/ocean/forest/etc or dial your own colours and save them as named themes (they live in localStorage as `pk.savedThemes`, export/import as JSON). layout: sidebar left/right/hidden, width, density, grid vs list.
 
-## Project structure
+**running it**
 
 ```
-MusicPk/
-  disc-player.html      # original single-file build (preserved)
-  package.json
-  server.js             # Express + SQLite + multer + Range streaming
-  disc.db               # created on first run
-  uploads/              # community audio files (WAV/MP3 seeded)
-  public/
-    index.html          # split-pane window, sidebar tabs, community feed
-    styles.css          # theme tokens + layout (7 themes)
-    app.js              # IndexedDB, playback, API client, visualiser
+python3 py_server.py
+# -> http://localhost:3000
+# needs python 3.9+, no pip deps. stdlib only.
+# db is ./disc.db (sqlite), uploads go to ./uploads/
 ```
 
-## Run
+or `node server.js` if you prefer the old express version — same routes. Dockerfile is included so Render/Railway/Fly just works: `PORT` env is read.
 
-Node 18+ required (no build step).
+**a bit rough around the edges**
 
-```sh
-npm install
-npm start
-# open http://localhost:3000
-```
+- search is just LIKE %query%, no full-text yet
+- no cover art upload, just URL field
+- plays/likes are naive counters, no rate limiting
+- wav/mp3 under 50MB, no transcoding
 
-Seed data is generated on first start if `disc.db` is empty: 8 community tracks are synthesised as WAV tones (distinct freq per genre) into `uploads/` plus artists and sample comments.
+i'm keeping the first single-file `disc-player.html` in the repo as `disc-player.html` for reference. the rest is in `public/` (index/styles/app) and `py_server.py`.
 
-## API
+**rules**
 
-| Method | Path | Notes |
-|---|---|---|
-| GET | /api/tracks?genre=&q=&sort= | list community tracks |
-| GET | /api/tracks/:id | single |
-| GET | /api/tracks/:id/stream | Range streaming, increments plays |
-| POST | /api/tracks | multipart `audio` + fields `title,artist,genre,year,tags` |
-| POST | /api/tracks/:id/like | increments likes |
-| GET | /api/tracks/:id/comments |  |
-| POST | /api/tracks/:id/comments | `{user,text}` |
-| GET | /api/tracks/:id/download | increments downloads |
-| GET | /api/artists | |
-| GET | /api/artists/:name/tracks | |
-| GET | /api/genres | |
-| GET | /api/health | |
+human music only. if you use an AI mastering helper, disclose it in credits. otherwise it'll be removed. see TOS inside the app (Rulebook) or `py_server.py` `/api/rulebook` — 8 sections, last updated 2026-08-27.
 
-Uploads are stored in `./uploads` with a 50 MB limit. Accepted: audio/* and .mp3/.wav/.ogg/.m4a/.flac/.aiff.
+**deploy**
 
-## Local personal library
+not using vercel for this one. easiest is Render free:
 
-Uses IndexedDB store `discPlayer.personalTracks`. Files are stored as Blobs, rehydrated to ObjectURLs on load. Use the "Clear index" button in the Your Discs pane to wipe the store (does not delete published community files).
+1. fork/push to GitHub
+2. Render → New Web Service → Docker → Connect `musicpk` → Deploy
+3. or `fly launch` / `railway up` — both read `Dockerfile` and `PORT`
 
-## Anti-slop adherence
+more in `DEPLOY.md`. tunnel for demos: `ssh -R 80:localhost:3000 nokey@localhost.run`
 
-See `no-ai-slop.md` in the project root. This build avoids: harsh generic gradients, Inter/Geist, glassmorphism, radial orbs, dot grids, neon/purple startup palette, bento grids, 3-card rows, emoji decoration, sparkle icons, hover lift, em dashes in copy, and fake testimonials. Typography is Tahoma / Geneva / Lucida Grande / Chicago-derived stacks plus monospace. Chrome is era-specific bevels and sunken panels, not Tailwind shadows.
+**license**
 
-## License / Privacy
+MIT — do what you want, just keep the human-music rule.
 
-Local files are private until you publish. Community publishes are public to anyone with the server URL. See Help > About > Terms / Privacy modals for the short notice.
+---
+
+built while listening to a lot of Boards of Canada and trying not to make another purple-gradient landing page. PRs welcome, especially if you catch me slipping back into AI slop.
+
+— Calico

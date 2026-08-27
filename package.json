@@ -1,7 +1,7 @@
 {
   "name": "disc-player-fullstack",
   "version": "1.0.0",
-  "description": "Disc Player - retro-styled dual-stream music player with local and community playback",
+  "description": "MUSiCPK — human-only music wiki, local discs + community boards (full-screen site, not a demo)",
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
