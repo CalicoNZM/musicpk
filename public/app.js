@@ -631,6 +631,39 @@ document.getElementById("importAlbumAppleBtn")?.addEventListener("click", async 
     document.getElementById("importAlbumTracksBtn")?.addEventListener("click", ()=> document.getElementById("albumCreateForm").requestSubmit());
   }
 });
+// Import artists — from Spotify / Apple Music artist URLs
+document.getElementById("importArtistSpotifyBtn")?.addEventListener("click", async ()=>{
+  const url=document.getElementById("artistSpotifyUrl").value.trim();
+  if(!url){ showToast("Paste Spotify artist URL"); return; }
+  document.getElementById("artistImportStatus").textContent="Fetching Spotify artist...";
+  const r=await fetch(`/api/import/spotify?url=${encodeURIComponent(url)}`);
+  const j=await r.json();
+  if(!r.ok){ document.getElementById("artistImportStatus").textContent=j.error; return; }
+  const name = j.artist_name || j.title || "";
+  document.getElementById("artistCreateName").value = name;
+  // try to keep website as spotify url
+  document.getElementById("artistCreateWebsite").value = url;
+  document.getElementById("artistImportStatus").textContent=`Imported: ${name} — ${j.hint||"edit bio manually"}`;
+});
+document.getElementById("importArtistAppleBtn")?.addEventListener("click", async ()=>{
+  const url=document.getElementById("artistAppleUrl").value.trim();
+  if(!url){ showToast("Paste Apple Music artist URL or name"); return; }
+  document.getElementById("artistImportStatus").textContent="Fetching Apple artist...";
+  let q = url.includes("music.apple.com") ? `url=${encodeURIComponent(url)}` : `term=${encodeURIComponent(url)}&artist=1`;
+  const r=await fetch(`/api/import/apple?${q}`);
+  const j=await r.json();
+  if(!r.ok){ document.getElementById("artistImportStatus").textContent=j.error; return; }
+  const artist = j.artist || (j.results && j.results.find(x=>x.wrapperType==="artist")) || (j.results && j.results[0]);
+  if(!artist){ document.getElementById("artistImportStatus").textContent="No artist found"; return; }
+  document.getElementById("artistCreateName").value = artist.artistName || "";
+  document.getElementById("artistCreateGenres").value = artist.primaryGenreName || "";
+  // iTunes artist has no bio; leave placeholder
+  if(!document.getElementById("artistCreateBio").value){
+    document.getElementById("artistCreateBio").value = `Imported from Apple Music — ${artist.artistName}. Add bio, formation, members.`;
+  }
+  if(artist.artistLinkUrl) document.getElementById("artistCreateWebsite").value = artist.artistLinkUrl;
+  document.getElementById("artistImportStatus").textContent=`Imported: ${artist.artistName} — ${artist.primaryGenreName||""}`;
+});
 
 // Community tracks in library preview + genre overview list
 async function loadCommunityTracks(){

@@ -176,32 +176,46 @@ class Handler(BaseHTTPRequestHandler):
             url=qs.get("url",[""])[0]
             if not url: return self.send_json({"error":"url required"},400)
             is_album = "/album/" in url
+            is_artist = "/artist/" in url
             try:
                 oembed="https://open.spotify.com/oembed?url="+urllib.parse.quote(url, safe='')
                 with urllib.request.urlopen(oembed, timeout=6) as resp:
                     data=json.loads(resp.read().decode())
-                    # for albums, try to hint that full tracklist requires API; we return oembed plus flag
-                    out={"provider":"spotify","title":data.get("title"),"artist":data.get("author_name"),"is_album":is_album,"raw":data}
-                    if is_album:
+                    out={"provider":"spotify","title":data.get("title"),"artist":data.get("author_name"),"is_album":is_album,"is_artist":is_artist,"raw":data}
+                    if is_artist:
+                        # artist URL: title is artist name, author_name may be "Spotify"
+                        out["artist_name"]=data.get("title")
+                        out["hint"]="Spotify artist import gives name and cover only. Bio/genres need manual wiki edit."
+                    elif is_album:
                         out["hint"]="Spotify album import via oEmbed gives title/artist only. Tracklist needs Spotify API. Use Apple Music for full album track import, or paste tracklist manually."
                     return self.send_json(out)
             except Exception as e:
-                return self.send_json({"error":str(e),"hint":"Paste a public Spotify track/album URL. We use oEmbed, no API key."},502)
+                return self.send_json({"error":str(e),"hint":"Paste a public Spotify track/album/artist URL. We use oEmbed, no API key."},502)
         if path.startswith("/api/import/apple"):
             url=qs.get("url",[""])[0]
             term=qs.get("term",[""])[0]
             want_album = qs.get("album",["0"])[0]=="1" or "album" in url
+            want_artist = qs.get("artist",["0"])[0]=="1" or "/artist/" in url
             if url and "music.apple.com" in url:
                 m=re.search(r"/album/[^/]+/(\d+)", url)
                 m2=re.search(r"[?&]i=(\d+)", url)
+                m_artist=re.search(r"/artist/[^/]+/(\d+)", url)
+                if m_artist:
+                    try:
+                        api=f"https://itunes.apple.com/lookup?id={m_artist.group(1)}"
+                        with urllib.request.urlopen(api, timeout=6) as resp:
+                            j=json.loads(resp.read().decode())
+                            results=j.get("results",[])
+                            artist=results[0] if results else None
+                            # try also search for artist details via search
+                            return self.send_json({"provider":"apple","artist":artist,"results":results, "is_artist":True})
+                    except Exception as e: return self.send_json({"error":str(e)},502)
                 if m:
                     try:
-                        # if album page, fetch album + songs
                         api=f"https://itunes.apple.com/lookup?id={m.group(1)}&entity=song"
                         with urllib.request.urlopen(api, timeout=8) as resp:
                             j=json.loads(resp.read().decode())
                             results=j.get("results",[])
-                            # first result is album, rest are tracks
                             album=results[0] if results else None
                             tracks=[r for r in results if r.get("wrapperType")=="track"]
                             return self.send_json({"provider":"apple","album":album,"tracks":tracks,"results":results})
@@ -214,14 +228,15 @@ class Handler(BaseHTTPRequestHandler):
                     except Exception as e: return self.send_json({"error":str(e)},502)
             if term:
                 try:
-                    # search can return albums or songs; try both
                     api="https://itunes.apple.com/search?term="+urllib.parse.quote(term)+"&media=music&limit=10"
                     if want_album:
                         api="https://itunes.apple.com/search?term="+urllib.parse.quote(term)+"&media=music&entity=album&limit=10"
+                    elif want_artist:
+                        api="https://itunes.apple.com/search?term="+urllib.parse.quote(term)+"&media=music&entity=musicArtist&limit=5"
                     with urllib.request.urlopen(api, timeout=6) as resp:
                         j=json.loads(resp.read().decode()); return self.send_json({"provider":"apple","results":j.get("results",[]), "tracks":[]})
                 except Exception as e: return self.send_json({"error":str(e)},502)
-            return self.send_json({"error":"Provide ?url= Apple Music album/track link or ?term= search. Add &album=1 for album search."},400)
+            return self.send_json({"error":"Provide ?url= Apple Music album/track/artist link or ?term= search. Add &album=1 or &artist=1 for specific search."},400)
         if path.startswith("/api/albums/") and path.endswith("/tracks"):
             try: aid=int(path.split("/")[3])
             except: return self.send_json({"error":"bad id"},400)

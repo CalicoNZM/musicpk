@@ -153,14 +153,27 @@
       <ul class="artist-grid" id="artistList"></ul>
       <div class="card" id="createArtistCard" hidden>
         <h2>Create artist niche</h2>
+        <div class="import-box">
+          <strong class="small">Import artist from Spotify / Apple Music</strong>
+          <p class="muted small">Paste an artist URL to prefill name and genre. You still write the bio.</p>
+          <div class="row">
+            <input type="url" id="artistSpotifyUrl" placeholder="https://open.spotify.com/artist/..." class="text-input" style="flex:1" />
+            <button type="button" class="btn small" id="importArtistSpotifyBtn">Import Spotify Artist</button>
+          </div>
+          <div class="row" style="margin-top:6px">
+            <input type="url" id="artistAppleUrl" placeholder="https://music.apple.com/.../artist/... or name" class="text-input" style="flex:1" />
+            <button type="button" class="btn small" id="importArtistAppleBtn">Import Apple Artist</button>
+          </div>
+          <p id="artistImportStatus" class="muted small"></p>
+        </div>
         <form id="artistCreateForm" class="stack">
-          <label class="field"><span>Name *</span><input type="text" name="name" required maxlength="80" class="text-input" /></label>
-          <label class="field"><span>Bio — descriptive, cite sources</span><textarea name="bio" rows="3" class="text-input" placeholder="Formation, style, key releases, influences..."></textarea></label>
-          <label class="field"><span>Location</span><input type="text" name="location" class="text-input" /></label>
-          <label class="field"><span>Genres</span><input type="text" name="genres" placeholder="indie, folk" class="text-input" /></label>
+          <label class="field"><span>Name *</span><input type="text" name="name" id="artistCreateName" required maxlength="80" class="text-input" /></label>
+          <label class="field"><span>Bio — descriptive, cite sources</span><textarea name="bio" id="artistCreateBio" rows="3" class="text-input" placeholder="Formation, style, key releases, influences..."></textarea></label>
+          <label class="field"><span>Location</span><input type="text" name="location" id="artistCreateLocation" class="text-input" /></label>
+          <label class="field"><span>Genres</span><input type="text" name="genres" id="artistCreateGenres" placeholder="indie, folk" class="text-input" /></label>
           <label class="field"><span>Members</span><input type="text" name="members" placeholder="Names, instruments" class="text-input" /></label>
           <label class="field"><span>Label</span><input type="text" name="label" class="text-input" /></label>
-          <label class="field"><span>Website</span><input type="url" name="website" placeholder="https://..." class="text-input" /></label>
+          <label class="field"><span>Website</span><input type="url" name="website" id="artistCreateWebsite" placeholder="https://..." class="text-input" /></label>
           <label class="field"><span>Formed year</span><input type="number" name="formed_year" class="text-input" /></label>
           <button type="submit" class="btn primary">Create</button><span id="artistCreateStatus" class="muted small"></span>
         </form>
